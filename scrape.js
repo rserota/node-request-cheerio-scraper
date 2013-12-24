@@ -28,7 +28,7 @@ for (var i = 0; i < hnQueries.length; i++){
     if (!error && response.statusCode == 200){
       var $ = cheerio.load(html)
       console.log(html)
-      console.log('story title: ', $('a.content-story-title'))
+      console.log('story title: ', $('a.content-story-title').text())
     }
   })
 }

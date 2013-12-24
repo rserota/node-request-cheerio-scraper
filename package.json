@@ -10,6 +10,7 @@
     "request": "~2.30.0",
     "node-fs": "~0.1.7",
     "csv": "~0.3.6",
-    "phantomjs": "~1.9.2-6"
+    "phantomjs": "~1.9.2-6",
+    "node-phantom": "~0.2.5"
   }
 }
