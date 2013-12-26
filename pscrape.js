@@ -1,5 +1,7 @@
 var phantom=require('node-phantom');
-var data = {}
+var fs = require('fs');
+var writeStream = fs.createWriteStream("file.csv");
+
 phantom.create(function(err,ph) {
     return ph.createPage(function(err,page) {
         return page.open("https://angel.co/public", function(err,status) {
@@ -10,26 +12,18 @@ phantom.create(function(err,ph) {
                 setTimeout(function() {
                     return page.evaluate(function() {
                         //Get what you want from the page using jQuery. A good way is to populate an object with all the jQuery commands that you need and then return the object.
-                        var links = [],
-                        pArr = [];
+                        var links = []
                         $('.name').each(function() {
-                            var name = $(this).text()
-                            console.log('name: ',name)
-                            links.push(('https://www.hnsearch.com/search#request/submissions&q=' + $(this).text() + '&sortby=create_ts+desc&start=0').replace(/\n/g,''));
+                            var name = $(this).text().replace(/\n/g,'')
+                            links.push({name : name, searchURL : ('https://www.hnsearch.com/search#request/submissions&q=' + $(this).text() + '&sortby=create_ts+desc&start=0').replace(/\n/g,'')});
                         });
-                        $('p').each(function() {
-                            pArr.push($(this).html());
-                        });
+                        return links
 
-                        return {
-                            links: links,
-                            p: pArr
-                        };
                     }, function(err,result) {
                         console.log('result: ',result);
-                        data.links = result.links
-                        gotLinks(data)
-                        // ph.exit();
+                        var data = result
+                        gotLinks(data, 0)
+                        ph.exit();
                     });
                 }, 3000);
             });
@@ -37,11 +31,11 @@ phantom.create(function(err,ph) {
     });
 });
 
-var gotLinks = function(data){
+var gotLinks = function(data, i){
     phantom.create(function(err,ph) {
         return ph.createPage(function(err,page) {
-          console.log(data.links[1])
-            return page.open(data.links[1], function(err,status) {
+          console.log(data[i])
+            return page.open(data[i].searchURL, function(err,status) {
                 console.log("opened site? ", status);
                 page.includeJs('http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js', function(err) {
               //jQuery Loaded.
@@ -49,21 +43,42 @@ var gotLinks = function(data){
                     setTimeout(function() {
                         return page.evaluate(function() {
                         //Get what you want from the page using jQuery. A good way is to populate an object with all the jQuery commands that you need and then return the object.
-                            var titles = []
-                            $('a.content-story-title').each(function() {
-                                titles.push($(this).text());
-                            });
-              
-                            return {
-                                titles: titles
-                            };
+                            
+                            var storyTitle = $('a.content-story-title').first().text()
+                            var storyLink = $('a.content-story-title').first().attr("href")
+                               
+                            return [storyTitle, storyLink]
                         }, function(err,result) {
                             console.log('result: ',result);
-                            // ph.exit();
+                            if(result){
+                                data[i].storyTitle = result[0]
+                                data[i].storyLink = result[1]
+                                console.log(data)
+                            }
+                            else {
+                              data[i].storyTitle = ' '
+                              data[i].storyLink = ' '
+                            }
+
+                            i++
+                            if (i < data.length){
+                              gotLinks(data, i)
+                            }
+                            else {
+                              csvWrite(data, 0)
+                            }
+                            ph.exit();
                         });
                     }, 3000);
                 });
             });
         });
     });
+}
+
+var csvWrite = function(data){
+    writeStream.write('Startup~' + 'Latest Story~' + 'URL' + '\n');
+    for(var i = 0; i < data.length; i++){
+        writeStream.write(data[i].name + '~' + data[i].storyTitle + '~' + data[i].storyLink + '\n')
+    }
 }
